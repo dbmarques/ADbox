@@ -1,4 +1,4 @@
-Marques D. B. Semiautomatic detection, estimates, and visualization of afterdischarges. 2024.
+Marques D. B. Semi-automatic detection, estimates, and visualization of afterdischarges. 2024.
 
 Scripts for semiautomatic detection, estimates, and visualization of afterdischarges (AD) on train-wise multidimensional (multiple regions, days, subjects) signals. Performs automatic baseline-referenced amplitude threshold-based detection followed by manual inspection and fixing. Gets the conventional AD estimates per stimulation train, such as quantities, latency, durations, and amplitudes. Visualize preprocessed specific or whole-session signals with overlayed ADs
 

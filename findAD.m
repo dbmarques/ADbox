@@ -136,12 +136,12 @@ for idx_subj = 1:size(Lfp,5)
                     lfp_neo_pre = neo(lfp_pre',d)';
         
                     %Amplitude
-                    movingwin = 5*Fs;
+                    movingwin = 1*Fs;
                     lfp_amp = movmax(abs(lfp_neo),movingwin,2);
                     lfp_amp_pre = movmax(abs(lfp_neo_pre),movingwin,2);
     
                     %Asymmetry
-                    movingwin = 5*Fs;
+                    movingwin = 1*Fs;
                     lfp_asym = movmax(lfp_neo,movingwin,2) - abs(movmin(lfp_neo,movingwin,2));
                     lfp_asym_pre = movmax(lfp_neo_pre,movingwin,2) - abs(movmin(lfp_neo_pre,movingwin,2));
         
@@ -161,13 +161,11 @@ for idx_subj = 1:size(Lfp,5)
                     lfp_amp = movmean(lfp_amp,movingwin,2); 
                     lfp_amp_pre = movmean(lfp_amp_pre,movingwin,2);
             end
-
-            lfp = neo(lfp',50)';
             
             %Threshold for AD detection
-            thr_amp_ad = 1.5*median(lfp_amp_pre(:))
-%             thr_amp_ad = median(lfp_amp_pre(:)) + 3*mad(lfp_amp_pre,1,'all')
-%             thr_amp_ad = mean(lfp_amp_pre(:)) + 2*std(lfp_amp_pre(:))
+            thr_amp_ad = 1.5*median(lfp_amp_pre(:));
+%             thr_amp_ad = median(lfp_amp_pre(:)) + 3*mad(lfp_amp_pre,1,'all');
+%             thr_amp_ad = mean(lfp_amp_pre(:)) + 2*std(lfp_amp_pre(:)):
 %             thr_amp_ad = 3*iqr(lfp_amp_pre(:));
 %             thr_amp_ad = quantile(lfp_amp_pre(:),.75) + 1.5*iqr(lfp_amp_pre(:));
 %             thr_amp_ad = 2*rms(lfp_amp_pre(:));

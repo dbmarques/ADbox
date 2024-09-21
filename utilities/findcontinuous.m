@@ -1,16 +1,19 @@
-% FINDCONTINUOUS() - Find index of starts of squared pulses (e.g. TTL) in
-%   signal.
+% FINDCONTINUOUS() - Find indices of continuous data above threshold with
+%   specfied minimum duration and maximum interval between occurrences.
 % 
 %   Usage
-%       [idx_startstop,idx_continuous] = findcontinuous(X,thr,minduration,mininterval)
+%       [idx_startstop,idx_continuous] = findcontinuous(X,thr,minduration,maxinterval)
 % 
 %   Inputs
-%       X = signal vector with squared pulses
-%       thr = amplitude threshold to find continuous data above. [default: 1.5*iqr]
+%       X = signal vector 
+%       thr = amplitude threshold to find continuous data above. 
+%           [default: 1.5*iqr]
 %       minduration = minimum duration (samples) of pulses. [default: 1]
-%       maxinterval = maximum interval (samples) between end and next start to join. [default: 1]
+%       maxinterval = maximum interval (samples) between end and next start 
+%           to join. [default: 1]
 %   Outputs
-%       idx_pulses = index of starts of pulses
+%       idx_startstop = index of starts and stops of data
+%       idx_continuous = logical vector of occurrences
 % 
 % Autor: Danilo Benette Marques, 2024
 

@@ -3,7 +3,7 @@
 %   followed by manual fixes.
 % 
 %   Usage:
-%       [Idx_ad] = findAD(Lfp,Fs,pretrain,traindur,posttrain,showfigs)    
+%       [Idx_ad] = findAD(Lfp,Fs,pretrain,traindur,posttrain,method,showfigs)    
 % 
 %   Inputs:
 %       Lfp = signals to locate AD (trains x samples x regions x days x
@@ -12,6 +12,12 @@
 %       pretrain = last sample of pre-train epoch (sample)
 %       traindur = duration of train to cut (samples)
 %       posttrain = duration of post-train epoch (samples)
+%       method = method to estimate lfp amplitude {'energy'
+%           [default],'amplitude','neo'}. Energy estimates the 10-sec
+%           moving mean of the signal energy (mV^2). Amplitude estimates
+%           the 1-sec moving maximum of the modulus of the signal. NEO
+%           estimates the energy and the Nonlinear Energy Operator and its
+%           amplitude and asymmetry, then gets a general score.
 % 
 %   Outputs
 %       Idx_ad = cell array containing [start stop] indices for every AD of 
@@ -28,13 +34,17 @@
 % Author: Danilo Benette Marques, 2024
 % Last update: 2024-09-19
 
-function [Idx_ad] = findAD(Lfp,Idx_ad,Fs,pretrain,traindur,posttrain,showfigs)
+function [Idx_ad] = findAD(Lfp,Idx_ad,Fs,pretrain,traindur,posttrain,method,showfigs)
 
 %Use presaved input Idx_ad
 if ~isempty(Idx_ad) 
     presaved = 1;
 else 
     presaved = 0;
+end
+
+if nargin<7 | isempty(method)
+    method = 'energy';
 end
 
 for idx_subj = 1:size(Lfp,5)
@@ -57,35 +67,115 @@ for idx_subj = 1:size(Lfp,5)
             lfp_pre(isnan(lfp_pre))=0;
             lfp_pos(isnan(lfp_pos))=0;
             
-            %Filter
-            locutoff = 2;
-            hicutoff = 20;
-            lfp_pre = eegfilt(lfp_pre,Fs,locutoff,0);
-                lfp_pre = eegfilt(lfp_pre,Fs,0,hicutoff);
-            lfp_pos = eegfilt(lfp_pos,Fs,locutoff,0);
-                lfp_pos = eegfilt(lfp_pos,Fs,0,hicutoff);
-            
-            %Reconcantenate
-            lfp = [lfp_pre lfp_pos];
-            t = linspace(0,size(lfp,2)/Fs,size(lfp,2)); %time vector (s) as in app
+            %Automatic detection of ADs
+            switch method
+                case 'energy'
+
+                    %Filter
+                    locutoff = 2;
+                    hicutoff = 20; %overall amplitude
+                    lfp_pre = eegfilt(lfp_pre,Fs,locutoff,0);
+                        lfp_pre = eegfilt(lfp_pre,Fs,0,hicutoff);
+                    lfp_pos = eegfilt(lfp_pos,Fs,locutoff,0);
+                        lfp_pos = eegfilt(lfp_pos,Fs,0,hicutoff);
     
-            %AD detection
-            movingwin = 10*Fs;
-            lfp_amp = movmean(lfp.*lfp,movingwin,2); %energy mean
-            lfp_amp_pre = movmean(lfp_pre.*lfp_pre,movingwin,2);
+                    %Reconcantenate
+                    lfp = [lfp_pre lfp_pos];
+                    t = linspace(0,size(lfp,2)/Fs,size(lfp,2)); %time vector (s) as in app
+    
+                    %Energy
+                    lfp_amp = lfp.*lfp;
+                    lfp_amp_pre = lfp_pre.*lfp_pre;
+
+                    %Smooth
+                    movingwin = 10*Fs;
+                    lfp_amp = movmean(lfp_amp,movingwin,2); 
+                    lfp_amp_pre = movmean(lfp_amp_pre,movingwin,2);
+
+                case 'amplitude'
+                    
+                    %Filter
+                    locutoff = 2;
+                    hicutoff = 20; %overall amplitude
+                    lfp_pre = eegfilt(lfp_pre,Fs,locutoff,0);
+                        lfp_pre = eegfilt(lfp_pre,Fs,0,hicutoff);
+                    lfp_pos = eegfilt(lfp_pos,Fs,locutoff,0);
+                        lfp_pos = eegfilt(lfp_pos,Fs,0,hicutoff);
+    
+                    %Reconcantenate
+                    lfp = [lfp_pre lfp_pos];
+                    t = linspace(0,size(lfp,2)/Fs,size(lfp,2)); %time vector (s) as in app
+    
+                    %Amplitude
+                    movingwin = 1*Fs;
+                    lfp_amp = movmax(abs(lfp),movingwin,2);
+                    lfp_amp_pre = movmax(abs(lfp_pre),movingwin,2);
+
+                case 'neo'
+
+                    %Filter
+                    locutoff = 2;
+                    hicutoff = 50; %preserves spike waveforms
+                    lfp_pre = eegfilt(lfp_pre,Fs,locutoff,0);
+                        lfp_pre = eegfilt(lfp_pre,Fs,0,hicutoff);
+                    lfp_pos = eegfilt(lfp_pos,Fs,locutoff,0);
+                        lfp_pos = eegfilt(lfp_pos,Fs,0,hicutoff);
+    
+                    %Reconcantenate
+                    lfp = [lfp_pre lfp_pos];
+                    t = linspace(0,size(lfp,2)/Fs,size(lfp,2)); %time vector (s) as in app
+    
+                    %Energy
+                    movingwin = 1*Fs;
+                    lfp_eng = movmean(lfp.*lfp,movingwin,2);
+                    lfp_eng_pre = movmean(lfp_pre.*lfp_pre,movingwin,2);
+        
+                    %NEO
+                    d = 50;
+                    lfp_neo = neo(lfp',d)';
+                    lfp_neo_pre = neo(lfp_pre',d)';
+        
+                    %Amplitude
+                    movingwin = 5*Fs;
+                    lfp_amp = movmax(abs(lfp_neo),movingwin,2);
+                    lfp_amp_pre = movmax(abs(lfp_neo_pre),movingwin,2);
+    
+                    %Asymmetry
+                    movingwin = 5*Fs;
+                    lfp_asym = movmax(lfp_neo,movingwin,2) - abs(movmin(lfp_neo,movingwin,2));
+                    lfp_asym_pre = movmax(lfp_neo_pre,movingwin,2) - abs(movmin(lfp_neo_pre,movingwin,2));
+        
+                    %General AD score
+                    lfp_eng = normalize(lfp_eng,2);
+                    lfp_eng_pre = normalize(lfp_eng_pre,2);
+                    lfp_amp = normalize(lfp_amp,2);
+                    lfp_amp_pre = normalize(lfp_amp_pre,2);
+                    lfp_asym = normalize(lfp_asym,2);
+                    lfp_asym_pre = normalize(lfp_asym_pre,2);
+    
+                    lfp_amp = + lfp_amp + lfp_asym;
+                    lfp_amp_pre = + lfp_amp_pre + lfp_asym_pre;
+
+                    %Smooth score
+                    movingwin = 10*Fs;
+                    lfp_amp = movmean(lfp_amp,movingwin,2); 
+                    lfp_amp_pre = movmean(lfp_amp_pre,movingwin,2);
+            end
+
+            lfp = neo(lfp',50)';
             
             %Threshold for AD detection
-            thr_amp_ad = 1.5*median(lfp_amp_pre(:));
-    %         thr_amp_ad = median(lfp_amp_pre(:))% + 3*mad(lfp_amp_pre,[1],'all');
-    %         thr_amp_ad = mean(lfp_amp_pre(:)) + 1*std(lfp_amp_pre(:));
-    %         thr_amp_ad = 3*iqr(lfp_amp_pre(:));
-    %         thr_amp_ad = quantile(lfp_amp_pre(:),.75) + 1.5*iqr(lfp_amp_pre(:));
-    %         thr_amp_ad = 2*rms(lfp_amp_pre(:));
+            thr_amp_ad = 1.5*median(lfp_amp_pre(:))
+%             thr_amp_ad = median(lfp_amp_pre(:)) + 3*mad(lfp_amp_pre,1,'all')
+%             thr_amp_ad = mean(lfp_amp_pre(:)) + 2*std(lfp_amp_pre(:))
+%             thr_amp_ad = 3*iqr(lfp_amp_pre(:));
+%             thr_amp_ad = quantile(lfp_amp_pre(:),.75) + 1.5*iqr(lfp_amp_pre(:));
+%             thr_amp_ad = 2*rms(lfp_amp_pre(:));
             
             minduration = 10*Fs; %min duration above threshold
             maxinterval = 5*Fs; %max interval between events to join
             
-            %General session figure
+            %Gets continuous data above threshold or presaved indices
             lfp_ad = abs(lfp);
             for idx_train = 1:size(lfp,1)
                 switch presaved
@@ -121,10 +211,11 @@ for idx_subj = 1:size(Lfp,5)
             %All trains figure
             if showfigs
             figure
-            hold on,h=plotmultisignals(t,abs(lfp),-2); set(h,'color',[.8 .8 .8]) 
-            hold on,h=plotmultisignals(t,lfp,-2); set(h,'color','k')
-            hold on,h=plotmultisignals(t,lfp_amp,-2); set(h,'color','b')    
-            hold on,h=plotmultisignals(t,movmax(abs(lfp_ad),1*Fs,2),-2); set(h,'color','r','linewidth',2);
+            space = -2;
+            hold on,h=plotmultisignals(t,abs(lfp),space); set(h,'color',[.8 .8 .8]) 
+            hold on,h=plotmultisignals(t,lfp,space); set(h,'color','k')
+%             hold on,h=plotmultisignals(t,lfp_amp,space); set(h,'color','b')    
+            hold on,h=plotmultisignals(t,movmax(abs(lfp_ad),1*Fs,2),space); set(h,'color','r','linewidth',2);
             g0=gridxy([pretrain/Fs (pretrain+traindur)/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')    
             title(['subject: ' num2str(idx_subj) ', day: ' num2str(idx_day) ', region: ' num2str(idx_region)])
             pause(0)
@@ -134,7 +225,7 @@ for idx_subj = 1:size(Lfp,5)
             disp('Do you want to perform manual fixes of AD classification?');
             trials_interest = input('No: Enter; Yes: Inform the trials you want to fix (e.g: [1 2 4 7]): ');
 
-            %Semiautimatic detection by train
+            %Semi-autimatic detection by train
             for idx_train = trials_interest %1:size(lfp,1)
                 
                 %Automatic detection of ADs
@@ -240,4 +331,6 @@ for idx_subj = 1:size(Lfp,5)
         end %region
     end %day
 end %subj
+
+
 

@@ -3,14 +3,15 @@
 %   followed by manual fixes.
 % 
 %   Usage:
-%       [Idx_ad] = findAD(Lfp,Fs,pretrain,traindur,posttrain,showfigs)    
+%       [Idx_ad] = findAD(Lfp,Fs,pretrain,durtrain,posttrain,showfigs)    
 % 
 %   Inputs:
 %       Lfp = signals to locate AD (trains x samples x regions x days x
 %           subjects)
 %       Fs = sampling rate
 %       pretrain = last sample of pre-train epoch (sample)
-%       traindur = duration of train to cut (samples)
+%       durtrain = duration of train to cut (samples). If empty, searches
+%           until the end.
 %       posttrain = duration of post-train epoch (samples)
 % 
 %   Outputs
@@ -18,8 +19,9 @@
 %           each train for every dimension
 % 
 % Author: Danilo Benette Marques, 2024
+% Last update: 2024-10-08
 
-function [h] = plotAD(Lfp,Idx_ad,Fs,pretrain,traindur,posttrain)
+function [h] = plotAD(Lfp,Idx_ad,Fs,pretrain,durtrain,posttrain)
 
 for idx_subj = 1:size(Lfp,5)
     for idx_day = 1:size(Lfp,4)
@@ -32,7 +34,10 @@ for idx_subj = 1:size(Lfp,5)
             
             %Separate pre- and post-
             lfp_pre = lfp(:,1:pretrain); %first 1 min+10,1 seg
-            lfp_pos = lfp(:,pretrain+traindur+1 : pretrain+traindur+posttrain); %>1 min +10.1(train) 
+            if isempty(posttrain) %until end
+                posttrain = size(lfp,2) - (pretrain+durtrain);
+            end
+            lfp_pos = lfp(:,pretrain+durtrain+1 : pretrain+durtrain+posttrain); %>1 min +10.1(train) 
             
             %Turn NaNs to 0
             isnan_lfp_pre = isnan(lfp_pre);
@@ -87,7 +92,7 @@ for idx_subj = 1:size(Lfp,5)
             hold on,h(:,2)=plotmultisignals(t,lfp,-2); set(h(:,2),'color','k') %lfp
 %             hold on,h(:,3)=plotmultisignals(t,lfp_amp,[]); set(h(:,3),'color','b') %lfp energy    
             hold on,h(:,4)=plotmultisignals(t,movmax(abs(lfp_ad),1*Fs,2),-2); set(h(:,4),'color','r','linewidth',2); %lfp amp
-            g0=gridxy([pretrain/Fs (pretrain+traindur)/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')    
+            g0=gridxy([pretrain/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')    
             scalebar(60,'1 min',1,'1 mV'); figstdAD; set(gca,'xcolor','none','ycolor','none');           
             
             title(['subject: ' num2str(idx_subj) ', day: ' num2str(idx_day) ', region: ' num2str(idx_region)])

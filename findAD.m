@@ -3,21 +3,24 @@
 %   followed by manual fixes.
 % 
 %   Usage:
-%       [Idx_ad] = findAD(Lfp,Fs,pretrain,traindur,posttrain,method,showfigs)    
+%       [Idx_ad] = findAD(Lfp,Fs,pretrain,durtrain,posttrain,method,showfigs)    
 % 
 %   Inputs:
 %       Lfp = signals to locate AD (trains x samples x regions x days x
 %           subjects)
 %       Fs = sampling rate
 %       pretrain = last sample of pre-train epoch (sample)
-%       traindur = duration of train to cut (samples)
+%       durtrain = duration of train to cut (samples). If empty, searches
+%           until the end.
 %       posttrain = duration of post-train epoch (samples)
-%       method = method to estimate lfp amplitude {'energy'
-%           [default],'amplitude','neo'}. Energy estimates the 10-sec
-%           moving mean of the signal energy (mV^2). Amplitude estimates
-%           the 1-sec moving maximum of the modulus of the signal. NEO
-%           estimates the energy and the Nonlinear Energy Operator and its
-%           amplitude and asymmetry, then gets a general score.
+%       method = method to estimate lfp amplitude 
+%           'energy'    = Energy estimates the 10-sec moving mean of the 
+%                           signal energy (mV^2). [default]
+%           'amplitude' = Amplitude estimates the 1-sec moving maximum of 
+%                           the modulus of the signal. 
+%           'neo'       = NEO estimates the energy, the Nonlinear Energy
+%                           Operator, its amplitude and asymmetry, then 
+%                           gets a general score.
 % 
 %   Outputs
 %       Idx_ad = cell array containing [start stop] indices for every AD of 
@@ -32,9 +35,9 @@
 %       signaltsmarker
 % 
 % Author: Danilo Benette Marques, 2024
-% Last update: 2024-09-19
+% Last update: 2024-10-08
 
-function [Idx_ad] = findAD(Lfp,Idx_ad,Fs,pretrain,traindur,posttrain,method,showfigs)
+function [Idx_ad] = findAD(Lfp,Idx_ad,Fs,pretrain,durtrain,posttrain,method,showfigs)
 
 %Use presaved input Idx_ad
 if ~isempty(Idx_ad) 
@@ -59,7 +62,10 @@ for idx_subj = 1:size(Lfp,5)
             
             %Separate pre- and post-
             lfp_pre = lfp(:,1:pretrain); %first 1 min+10,1 seg
-            lfp_pos = lfp(:,pretrain+traindur+1 : pretrain+traindur+posttrain); %>1 min +10.1(train) 
+            if isempty(posttrain) %until end
+                posttrain = size(lfp,2) - (pretrain+durtrain);
+            end
+            lfp_pos = lfp(:,pretrain+durtrain+1 : pretrain+durtrain+posttrain); %>1 min +10.1(train) 
             
             %Turn NaNs to 0
             isnan_lfp_pre = isnan(lfp_pre);
@@ -214,7 +220,7 @@ for idx_subj = 1:size(Lfp,5)
             hold on,h=plotmultisignals(t,lfp,space); set(h,'color','k')
 %             hold on,h=plotmultisignals(t,lfp_amp,space); set(h,'color','b')    
             hold on,h=plotmultisignals(t,movmax(abs(lfp_ad),1*Fs,2),space); set(h,'color','r','linewidth',2);
-            g0=gridxy([pretrain/Fs (pretrain+traindur)/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')    
+            g0=gridxy([pretrain/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')    
             title(['subject: ' num2str(idx_subj) ', day: ' num2str(idx_day) ', region: ' num2str(idx_region)])
             pause(0)
             end
@@ -262,7 +268,7 @@ for idx_subj = 1:size(Lfp,5)
                 
                 ylim([-1 1])
                 
-                g0=gridxy([pretrain/Fs (pretrain+traindur)/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')
+                g0=gridxy([pretrain/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')
                 g0=gridxy([],thr_amp_ad,'linestyle','--','color','b','linewidth',2); uistack(g0,'top')
     
                 ylabel('mV')
@@ -286,7 +292,7 @@ for idx_subj = 1:size(Lfp,5)
                 ylim([-1 1])
                 linkaxes(axad,'xy')
                 
-                g0=gridxy([pretrain/Fs (pretrain+traindur)/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')
+                g0=gridxy([pretrain/Fs],[],'linestyle','--','color','k'); uistack(g0,'top')
                 g0=gridxy([],thr_amp_ad,'linestyle','--','color','b','linewidth',2); uistack(g0,'top')
                 
                 uiwait(sigapp.SignalTimestampMarkerappUIFigure) %waits until close app

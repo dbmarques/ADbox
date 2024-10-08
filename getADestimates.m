@@ -4,7 +4,7 @@
 %   ADs.
 % 
 %   Usage:
-%       [ADqnt, ADlat, ADdur, ADamp, Lfp_amp, Lfp_ad] = getADestimates(Lfp,Idx_ad,Fs,pretrain,traindur,posttrain)
+%       [ADqnt, ADlat, ADdur, ADamp, Lfp_amp, Lfp_ad] = getADestimates(Lfp,Idx_ad,Fs,pretrain,durtrain,posttrain)
 % 
 %   Inputs:
 %       Lfp = signals to locate AD (trains x samples x regions x days x
@@ -12,8 +12,9 @@
 %       Idx_ad = cell array of indices of ADs retrieved by findAD
 %       Fs = sampling rate
 %       pretrain = last sample of pre-train epoch (sample)
-%       traindur = duration of train to cut (samples)
-%       posttrain = duration of post-train epoch (samples)
+%       durtrain = duration of train to cut (samples)
+%       posttrain = duration of post-train epoch (samples). If empty, 
+%           searches until the end.
 % 
 %   Outputs
 %       ADqnt = cell array of AD quantities per train
@@ -28,8 +29,9 @@
 %           use ~isnan(Lfp_ad) to get logical indices
 % 
 % Author: Danilo Benette Marques, 2024
+% Last update: 2024-10-08
 
-function [ADqnt, ADlat, ADdur, ADamp, Lfp_amp, Lfp_ad] = getADestimates(Lfp,Idx_ad,Fs,pretrain,traindur,posttrain)
+function [ADqnt, ADlat, ADdur, ADamp, Lfp_amp, Lfp_ad] = getADestimates(Lfp,Idx_ad,Fs,pretrain,durtrain,posttrain)
 
 Ntrain = size(Lfp,1); %number of trains
 
@@ -39,6 +41,9 @@ ADlat(1:Ntrain,1,size(Lfp,3),size(Lfp,4),size(Lfp,5)) = {[NaN]};
 ADdur(1:Ntrain,1,size(Lfp,3),size(Lfp,4),size(Lfp,5)) = {[NaN]};       
 ADamp(1:Ntrain,1,size(Lfp,3),size(Lfp,4),size(Lfp,5)) = {[NaN]};  
 
+if isempty(posttrain) %until end
+posttrain = size(Lfp,2) - (pretrain+durtrain);
+end
 Lfp_amp = nan(size(Lfp,1),pretrain+posttrain,size(Lfp,3),size(Lfp,4),size(Lfp,5));
 Lfp_ad = nan(size(Lfp,1),pretrain+posttrain,size(Lfp,3),size(Lfp,4),size(Lfp,5));
 
@@ -55,9 +60,12 @@ for idx_subj = 1:size(Lfp,5)
         
         disp(['Getting AD estimates of subject: ' num2str(idx_subj) ', day: ' num2str(idx_day) ', region: ' num2str(idx_region)])
 
-        %Sepasubje pre- and post-
+        %Separate pre- and post-
         lfp_pre = lfp(:,1:pretrain); %first 1 min+10,1 seg
-        lfp_pos = lfp(:,pretrain+traindur+1 : (pretrain+traindur+posttrain)); %>1 min +10.1(train) 
+        if isempty(posttrain) %until end
+            posttrain = size(lfp,2) - (pretrain+durtrain);
+        end
+        lfp_pos = lfp(:,pretrain+durtrain+1 : pretrain+durtrain+posttrain); %>1 min +10.1(train) 
         
         %Turn NaNs to 0 (for filtering)
         isnan_lfp_pre = isnan(lfp_pre);
@@ -91,7 +99,7 @@ for idx_subj = 1:size(Lfp,5)
 %         lfp_amp = movmean(lfp.*lfp,movingwin,2); %energy mean
         lfp_amp = movmax(abs(lfp),1*Fs,2);
 
-         %Run for each AD of every train
+        %Run for each AD of every train
         lfp_ad = nan(size(lfp));
         for idx_train = 1:size(lfp,1) %each train
                      
@@ -129,7 +137,7 @@ for idx_subj = 1:size(Lfp,5)
                 %Latency of first
                 ADlat{idx_train,1,idx_region,idx_day,idx_subj} = (idx_ad_ad(1)-pretrain)/Fs;
 
-                %Dusubjion
+                %Duration
                 ADdur{idx_train,1,idx_region,idx_day,idx_subj}(iad,:) = (idx_ad_ad(2)-idx_ad_ad(1))/Fs;
 
                 %Amplitude
